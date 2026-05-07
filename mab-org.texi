@@ -1,0 +1,732 @@
+\input texinfo                  @c -*-texinfo-*-
+@c %**start of header
+@setfilename mab-org.info
+@settitle Mab-Org Manual
+@documentencoding UTF-8
+@documentlanguage en
+@c %**end of header
+
+@copying
+This manual documents Mab-Org, version 0.4.0, an Emacs package that
+provides Org-mode helpers for modular annotated bibliographies.
+
+Copyright @copyright{} 2026 Blaine Mooers.
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3
+or any later version published by the Free Software Foundation; with
+no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the section entitled ``GNU Free
+Documentation License''.
+@end quotation
+@end copying
+
+@dircategory Emacs
+@direntry
+* Mab-Org: (mab-org).           Org-mode helpers for modular annotated bibliographies.
+@end direntry
+
+@titlepage
+@title Mab-Org
+@subtitle Org-mode helpers for modular annotated bibliographies
+@author Blaine Mooers (@email{blaine-mooers@@ou.edu})
+
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top Mab-Org
+
+@insertcopying
+@end ifnottex
+
+@menu
+* Introduction::                 What this package does.
+* Quick Start::                  Get going in three commands.
+* Installation::                 Putting the package on your load path.
+* Configuration::                User options and defaults.
+* Public Commands::              Interactive entry points.
+* Project Template::             The mab project Org template.
+* Variant Resolution::           Reuse, variant, or quit.
+* Ebib Integration::             Add bib items from inside ebib.
+* The Test Suite::               Layout and how to run.
+* Makefile Targets::             Build, install, test, info.
+* Compatibility::                Emacs versions and dependencies.
+* Changelog::                    Release history.
+* MELPA Notes::                  Conformance with packaging conventions.
+* GNU Free Documentation License::
+* Function Index::
+* Variable Index::
+@end menu
+
+@node Introduction
+@chapter Introduction
+
+@code{mab-org.el} bundles the helpers used to assemble manuscript-style
+modular annotated bibliographies (mab) and lighter-weight annotated
+bibliographies (abib) inside Org-mode buffers.
+
+The package wraps citar (and ebib) citekeys with LaTeX
+@code{\bibentry} code, creates per-citekey Org notes from a
+configurable template, optionally appends BibTeX entries to a
+project-specific @file{.bib} file, and bulk applies the same wrapping
+to every citation in a region.  It also stamps out a fresh
+@file{mab<NUMBER>/mab<NUMBER>.org} project file from a built-in
+template, finds or creates such a file by project number, and appends
+a wrapped block to the project file directly from inside @code{ebib}.
+
+@cindex annotated bibliography
+@cindex bibentry
+@cindex citar
+@cindex ebib
+@cindex Org-mode
+
+When a per-citekey note already exists (for example because it was
+created during work on another project), the package detects the
+duplicate and offers to reuse the existing note, create a variant
+with the next available letter suffix, or quit without changing the
+buffer.
+
+@node Quick Start
+@chapter Quick Start
+
+Once the package is on your @code{load-path} and @code{(require 'mab-org)}
+has been evaluated, the three most common entry points are:
+
+@table @kbd
+@item M-x mab-org-create-project
+Stamp out a new @file{mab<NUMBER>/mab<NUMBER>.org} project file from
+the built-in template.
+
+@item M-x mab-org-wrap-citekey
+With point on a citekey or @code{[cite:@@KEY]} in any buffer, replace
+the citekey with the wrapped LaTeX block, create the per-citekey
+note, and open it.
+
+@item M-x mab-org-add-bib-item
+From the @code{ebib} index buffer, append the wrapped block for the
+current entry to the configured mab project file.  Bound to @kbd{B}
+in @code{ebib-index-mode-map} once @code{ebib} is loaded.
+@end table
+
+@node Installation
+@chapter Installation
+
+@section Manual
+
+Put the directory on your @code{load-path} and load the package.
+
+@lisp
+(add-to-list 'load-path "/path/to/mab-org/")
+(require 'mab-org)
+@end lisp
+
+@section With @code{use-package}
+
+@lisp
+(use-package mab-org
+  :load-path "/path/to/mab-org/"
+  :commands (mab-org-create-project
+             mab-org-open-file
+             mab-org-wrap-citekey
+             mab-org-wrap-citekey-abib
+             mab-org-wrap-region
+             mab-org-insert-matching-keys
+             mab-org-add-bib-item))
+@end lisp
+
+@section From a system @code{make install}
+
+@xref{Makefile Targets}, for a description of @code{make install} and
+@code{make install-info}.  Both honor a @code{PREFIX} variable so the
+files can be staged anywhere under your home directory.
+
+@node Configuration
+@chapter Configuration
+
+The package exposes user options through the customization group
+@code{mab-org}.  Customize them with @kbd{M-x customize-group RET
+mab-org RET} or set them in your init file.
+
+@defopt mab-org-notes-directory
+@vindex mab-org-notes-directory
+Directory that holds per-citekey Org notes.  Default
+@file{~/abibNotes/}.
+@end defopt
+
+@defopt mab-org-pdfs-directory
+@vindex mab-org-pdfs-directory
+Directory that holds renamed article PDFs.  Default
+@file{~/0papersLabeled/}.
+@end defopt
+
+@defopt mab-org-books-directory
+@vindex mab-org-books-directory
+Directory that holds renamed book PDFs.  A second file link is added
+to every wrapped block so notes derived from books are reachable
+without changing the template.  Default @file{~/0booksLabeled/}.
+@end defopt
+
+@defopt mab-org-global-bib-file
+@vindex mab-org-global-bib-file
+Path to the global BibTeX library, searched by
+@code{mab-org-insert-matching-keys}.  Default
+@file{~/Documents/global.bib}.
+@end defopt
+
+@defopt mab-org-region-confirm-threshold
+@vindex mab-org-region-confirm-threshold
+Maximum number of citations a region may carry before
+@code{mab-org-wrap-region} asks for confirmation.  Default 10.
+@end defopt
+
+@defopt mab-org-book-entry-regexp
+@vindex mab-org-book-entry-regexp
+Regexp identifying a BibTeX entry that should use the book PDF
+link instead of the article PDF link.  Matched against the raw
+entry text (case-insensitively).  The default is
+@code{"\\`[[:space:]]*@@book"}, which catches @code{@@book} and
+@code{@@booklet} through prefix match.  Extend it to also catch
+@code{@@inbook} or @code{@@incollection} when needed.
+@end defopt
+
+@defopt mab-org-base-directory
+@vindex mab-org-base-directory
+Default base directory under which mab project files live.  When
+nil, @code{mab-org-create-project} falls back to the directory of
+the current buffer (or @code{default-directory} when there is no
+buffer file).
+@end defopt
+
+@defopt mab-org-mab-path
+@vindex mab-org-mab-path
+Default destination for @code{mab-org-add-bib-item}.  This is the
+absolute path of the mab project Org file to which ebib entries are
+appended.  When nil, the user is prompted with no default.  The
+variable is updated automatically when @code{mab-org-add-bib-item}
+is called interactively, so the most recent choice persists for the
+rest of the session.
+@end defopt
+
+@node Public Commands
+@chapter Public Commands
+
+This chapter documents every interactive command in the package.
+
+@deffn Command mab-org-create-project project-number project-tag project-title @
+       &optional base-dir bib-path
+@findex mab-org-create-project
+Stamp out a new project at
+@file{BASE/mab<PROJECT-NUMBER>/mab<PROJECT-NUMBER>.org}.
+
+@var{project-number} is the numeric project identifier (for example
+@code{"0386"}).  @var{project-tag} is the short tag that follows the
+number in the document title.  @var{project-title} is the longer
+human-readable title used in the running header.  @var{bib-path} is
+the path passed to LaTeX @code{\bibliography}; when nil,
+@code{mab-org-global-bib-file} is used (with the @file{.bib} suffix
+stripped).
+
+The function refuses to overwrite an existing project file.
+
+Interactive synopsis:
+
+@example
+M-x mab-org-create-project RET 0386 RET mpQcr RET multipass QCr RET
+@end example
+@end deffn
+
+@deffn Command mab-org-open-file project-number &optional base-dir
+@findex mab-org-open-file
+Find or create a mab project file by @var{project-number}.  When
+@file{BASE/mab<PROJECT-NUMBER>/mab<PROJECT-NUMBER>.org} already
+exists it is opened.  Otherwise the user is asked whether to create
+it from the template, and if so prompted for a project tag and
+title.
+@end deffn
+
+@deffn Command mab-org-wrap-citekey
+@findex mab-org-wrap-citekey
+Replace the citekey under the cursor with LaTeX-wrapped text and
+create an empty per-citekey Org note when one does not yet exist.
+Works with @code{[cite:@@KEY]}, plain LaTeX style, or bare-word
+citekeys.  The wrapped block contains @code{\bibentry@{KEY@}},
+@code{\addcontentsline@{toc@}@{subsubsection@}}, an
+@code{#+INCLUDE:} directive, a bare file link to the per-note
+Org file, and a single PDF link.  The PDF link points at
+@code{mab-org-pdfs-directory} by default, or at
+@code{mab-org-books-directory} when the BibTeX entry for the
+citekey matches @code{mab-org-book-entry-regexp}.  The links
+are not wrapped in a Notes drawer, so they remain visible in
+the exported document.
+
+When a note for the citekey already exists, the user is prompted
+to (r)euse, create a (v)ariant, or (q)uit.  @xref{Variant
+Resolution}.
+@end deffn
+
+@deffn Command mab-org-wrap-citekey-abib
+@findex mab-org-wrap-citekey-abib
+Same as @code{mab-org-wrap-citekey}, with two differences.  First,
+the project @file{.bib} file is written next to the current buffer
+(as @file{ab<NUMBER>.bib}) rather than in a @file{mab<NUMBER>/}
+subdirectory.  Second, the inserted block keeps the same two
+file links (the per-note Org file and the chosen article or
+book PDF) inside an Org @code{BEGIN_COMMENT/END_COMMENT} block,
+so they do not appear in the exported document.
+@end deffn
+
+@deffn Command mab-org-wrap-region start end
+@findex mab-org-wrap-region
+Apply @code{mab-org-wrap-citekey} to every citation in the active
+region.  Citations are processed from end to beginning so that
+earlier positions remain valid as later citations expand.  The
+command asks for confirmation when the region holds more than
+@code{mab-org-region-confirm-threshold} citations.
+@end deffn
+
+@deffn Command mab-org-insert-matching-keys term
+@findex mab-org-insert-matching-keys
+Read a search @var{term}, scan @code{mab-org-global-bib-file}, and
+insert one @code{[cite:@@CITEKEY]} line at point for every BibTeX
+entry whose raw text contains the term (case insensitive).
+Returns the list of citekeys, so the function is also useful from
+other Lisp.
+@end deffn
+
+@deffn Command mab-org-add-bib-item &optional file-path
+@findex mab-org-add-bib-item
+When called from @code{ebib}'s index buffer, append the wrapped
+LaTeX block for the current entry to a mab project Org file.  The
+wrapped block lands under the section @code{\section*@{Illustrated
+and annotated bibliography@}}, before any
+@code{\section*@{Backmatter@}} section if one is present, or at the
+end of the file otherwise.  The per-citekey abibnote is also
+created when it does not already exist.
+
+The destination defaults to @code{mab-org-mab-path}; the most
+recent choice is remembered for the rest of the session.
+
+When @code{ebib} is loaded, the command is bound to @kbd{B} in
+@code{ebib-index-mode-map}.
+@end deffn
+
+@node Project Template
+@chapter Project Template
+
+The built-in project template lives inside @file{mab-org.el} as the
+constant @code{mab-org--template-string}.  A reference copy ships in
+@file{mabXXXX.org} so you can preview the output before generating a
+new project file.
+
+@code{mab-org-create-project} performs five substitutions in the
+template:
+
+@multitable @columnfractions .35 .65
+@headitem Placeholder @tab Source
+@item Document title
+@tab Project number plus project tag
+@item Running header
+@tab Project number plus project full title
+@item Sub-directory
+@tab @file{mab<PROJECT-NUMBER>/}
+@item File name
+@tab @file{mab<PROJECT-NUMBER>.org}
+@item @code{\bibliography@{@}}
+@tab @code{mab-org-global-bib-file} without the @file{.bib} suffix
+@end multitable
+
+@node Variant Resolution
+@chapter Variant Resolution
+
+@cindex variant note
+@cindex duplicate note
+
+When @code{mab-org-wrap-citekey} or @code{mab-org-wrap-citekey-abib}
+detects an existing @file{<citekey>.org} in
+@code{mab-org-notes-directory}, it asks the user how to proceed:
+
+@table @asis
+@item @kbd{r} (reuse)
+Keep the existing note.  No new file is written; the wrapped block
+references the existing note.
+
+@item @kbd{v} (variant)
+Create a new note whose stem has the next available lowercase letter
+appended.  For example, if @file{Foo2020Bar.org} already exists, the
+new stem becomes @file{Foo2020Bara}; if @file{Foo2020Bara.org} also
+exists, the next stem is @file{Foo2020Barb}.
+
+@item @kbd{q} (quit)
+Abort without changing the buffer.  No file is written, no text is
+inserted.
+@end table
+
+What the variant suffix changes:
+
+@itemize @bullet
+@item
+The @code{\addcontentsline} table-of-contents entry uses the stem,
+so a variant gets a distinct row in the TOC.
+@item
+The @code{#+INCLUDE:} directive and the Org-note link use the stem,
+so the variant note is the file actually opened and included.
+@item
+The @code{\bibentry} command and the article and book PDF links keep
+the original citekey, because the BibTeX library and the PDF/book
+archives are keyed by citekey.
+@end itemize
+
+@node Ebib Integration
+@chapter Ebib Integration
+
+The package integrates with @code{ebib} via
+@code{mab-org-add-bib-item}.  The command must be invoked from an
+@code{ebib} index buffer; outside it the command signals
+@code{user-error}.
+
+Once @code{ebib} is loaded, the package binds the command to @kbd{B}:
+
+@lisp
+(eval-after-load 'ebib
+  '(when (boundp 'ebib-index-mode-map)
+     (define-key ebib-index-mode-map (kbd "B") #'mab-org-add-bib-item)))
+@end lisp
+
+The flow:
+
+@enumerate
+@item
+Open ebib (@kbd{M-x ebib}) and navigate to the entry you want to
+annotate.
+
+@item
+Press @kbd{B}.
+
+@item
+Confirm the destination mab project file (default
+@code{mab-org-mab-path}, if set, otherwise prompt with no default).
+
+@item
+The package writes the wrapped block under the section
+@code{\section*@{Illustrated and annotated bibliography@}},
+appended just below the last existing entry and above any
+@code{\clearpage} (and surrounding blank lines) that introduces
+the @code{\section*@{Backmatter@}} heading, so the entry stays
+inside the bibliography section in the rendered document.  An
+empty per-citekey abibnote is created if none exists yet.
+@end enumerate
+
+@node The Test Suite
+@chapter The Test Suite
+
+The companion file @file{mab-org-test.el} carries an ERT regression
+suite for the package.
+
+@section What the suite covers
+
+@itemize @bullet
+@item
+Citekey extraction from the three accepted forms
+(@code{[cite:@@KEY]}, @code{[cite:@@a,@@b]}, bare word, nil).
+
+@item
+Default project number detection from filenames
+(@file{mab<N>.org}, @file{ab<N>.org}, bare digits, no digits, nil).
+
+@item
+mab-style and abib-style wrapped text rendering, including the
+default-to-article behavior, the @code{book-p} switch to the
+books directory, and the variant-stem split that keeps the
+bibentry and PDF link on the citekey while INCLUDE/TOC/note
+link follow the stem.
+
+@item
+@code{mab-org--book-entry-p} predicate, including the default
+@code{@@book} prefix match and a custom regexp that adds
+@code{@@inbook} and @code{@@incollection}.
+
+@item
+@code{mab-org--lookup-bibtex-entry} fallback to
+@code{mab-org-global-bib-file} when citar is not loaded.
+
+@item
+Region citation collection and ordering.
+
+@item
+Empty-note creation, including missing-directory creation, and
+not overwriting an existing note.
+
+@item
+Variant resolution: no existing note (no prompt), reuse, variant,
+all letters taken (variant option suppressed), quit (signals
+@code{user-error}).
+
+@item
+Project template substitution and project file creation, including
+the @file{mab<N>/} subdirectory layout, refusal to overwrite, and
+nested base directory creation.
+
+@item
+BibTeX append helper (creates new file, preserves existing
+content).
+
+@item
+Bounds detection (citation block versus bare word at point).
+
+@item
+The search-and-insert command against an in-memory @file{global.bib}.
+
+@item
+@code{mab-org-add-bib-item} insertion behavior with and without a
+Backmatter section, with the new entry placed above any
+@code{\clearpage} that introduces Backmatter, the
+missing-section error, the rejected non-ebib buffer error, and
+automatic note creation.
+
+@item
+Public command surface: every command listed in @ref{Public
+Commands} is bound and interactive.
+@end itemize
+
+@section Helpers used by the suite
+
+@deffn Function mab-org-test--with-temp-dir fn
+@findex mab-org-test--with-temp-dir
+Call @var{fn} with the path to a fresh temporary directory.  The
+directory and its contents are deleted after @var{fn} returns.
+@end deffn
+
+@deffn Macro mab-org-test-with-temp-dir var &rest body
+@findex mab-org-test-with-temp-dir
+Bind @var{var} to a fresh temporary directory and evaluate
+@var{body}.
+@end deffn
+
+@deffn Function mab-org-test--read-file path
+@findex mab-org-test--read-file
+Return the contents of @var{path} as a string.
+@end deffn
+
+@deffn Function mab-org-test--make-mab-file path &optional with-backmatter
+@findex mab-org-test--make-mab-file
+Write a minimal mab Org file to @var{path} for testing.  When
+@var{with-backmatter} is non-nil, also include a Backmatter
+section after the bibliography heading.
+@end deffn
+
+@section Mocking ebib and read-multiple-choice
+
+The suite uses @code{cl-letf} to mock @code{read-multiple-choice}
+for the variant-resolution tests, and @code{ebib--get-key-at-point}
+together with @code{derived-mode-p} for the ebib-integration tests.
+This means the suite runs without @code{ebib} or @code{citar}
+installed.
+
+@section Running the suite
+
+@example
+make test
+@end example
+
+The Makefile target removes any stale @file{.elc} before running so
+Emacs cannot accidentally load an out-of-date byte-compiled
+definition.  @xref{Makefile Targets}.
+
+@node Makefile Targets
+@chapter Makefile Targets
+
+The Makefile uses GNU-style installation variables that you can
+override on the command line.
+
+@multitable @columnfractions .25 .75
+@headitem Variable @tab Default
+@item @code{PREFIX}
+@tab @code{$(HOME)/.local}
+@item @code{INFODIR}
+@tab @code{$(PREFIX)/share/info}
+@item @code{EMACSDIR}
+@tab @code{$(PREFIX)/share/emacs/site-lisp}
+@item @code{EMACS}
+@tab @code{emacs}
+@item @code{INSTALL}
+@tab @code{install}
+@item @code{INSTALL_INFO}
+@tab @code{install-info}
+@end multitable
+
+@table @code
+@item make all
+The default target.  Equivalent to @code{make compile test}.
+
+@item make test
+Run the ERT suite in batch mode.  Removes stale @file{.elc} first so
+Emacs cannot load an outdated byte-compiled definition.
+
+@item make compile
+Byte-compile @file{mab-org.el} to @file{mab-org.elc}.
+
+@item make info
+Build @file{mab-org.info} from @file{mab-org.texi} with
+@code{makeinfo}.
+
+@item make install
+Install @file{mab-org.el} into @code{$(EMACSDIR)}.  Override
+@code{PREFIX} to choose another location.
+
+@item make install-info
+Build @file{mab-org.info} (if necessary) and install it into
+@code{$(INFODIR)}, then run @code{install-info} so the page is
+registered with @code{info}'s top-level directory.
+
+@item make uninstall
+Remove the installed @file{mab-org.el} from @code{$(EMACSDIR)}.
+
+@item make uninstall-info
+Remove the installed @file{mab-org.info} from @code{$(INFODIR)} and
+unregister it from the top-level directory.
+
+@item make lint
+Run @code{checkdoc} against @file{mab-org.el}.
+
+@item make clean
+Remove all build products, including @file{.elc} and @file{.info}.
+@end table
+
+A typical user-level install:
+
+@example
+make
+make install
+make install-info
+@end example
+
+A typical system install (with @code{sudo}):
+
+@example
+sudo make PREFIX=/usr/local install install-info
+@end example
+
+@node Compatibility
+@chapter Compatibility
+
+Tested with Emacs 27.1 and later.  @code{bibtex.el} is the only
+required dependency.  @code{citar} is optional and is only used when
+the wrapper commands need to copy a BibTeX entry into the project
+@file{.bib} file.  @code{ebib} is optional and is only used by
+@code{mab-org-add-bib-item}; the key binding registration is gated
+on @code{(eval-after-load 'ebib ...)}.
+
+@node Changelog
+@chapter Changelog
+
+@table @strong
+@item 0.4.0
+Replaced the two PDF lines in the wrapped block with a single
+PDF link.  The link points at @code{mab-org-pdfs-directory} by
+default and at @code{mab-org-books-directory} when the BibTeX
+entry matches @code{mab-org-book-entry-regexp} (default:
+@code{@@book} prefix).  Added @code{mab-org--lookup-bibtex-entry}
+which tries citar first and falls back to
+@code{mab-org-global-bib-file}, and added
+@code{mab-org--book-entry-p}.
+
+@item 0.3.2
+Removed the @code{:Notes:} ... @code{:END:} drawer and the
+``Add more prose. Add tables. Add figures.'' line from the
+mab-style wrapped block.  The three file links (to the per-note
+Org file, the article PDF, and the book PDF) are retained and now
+appear as bare lines.  Reworked
+@code{mab-org-add-bib-item} so the new entry is appended above
+any @code{\clearpage} that introduces the Backmatter section, so
+entries stay inside the bibliography section in the rendered
+document.
+
+@item 0.3.1
+Removed the per-citekey note template.  New abibnotes are created
+empty.  Dropped @code{mab-org-note-template} and
+@code{mab-org-create-note-files}.
+
+@item 0.3.0
+Renamed the package from @code{mab} to @code{mab-org}.  Adopted the
+@code{mab<NUMBER>/} subdirectory convention for project files.
+Added @code{mab-org-add-bib-item} for ebib integration,
+@code{mab-org-open-file} for find-or-create, and
+@code{mab-org-books-directory} so wrapped blocks include a book PDF
+link.
+
+@item 0.2.0
+Added the variant-note prompt (reuse, variant, quit) for duplicate
+abibnotes, an alphabet-walking next-letter helper, and the
+two-argument render functions that accept a stem distinct from the
+citekey.
+
+@item 0.1.0
+Initial collection: wrap a citekey, wrap a region, search the
+global bib, and stamp out a project file from a template.
+@end table
+
+@node MELPA Notes
+@chapter MELPA Notes
+
+@cindex MELPA
+
+The package follows the conventions checked by
+@code{package-build} and @code{package-lint}:
+
+@itemize @bullet
+@item
+@code{lexical-binding: t} declared on the first line.
+@item
+Standard package header with @code{Author},
+@code{Maintainer}, @code{URL}, @code{Version},
+@code{Package-Requires}, and @code{Keywords}.
+@item
+A trailing @code{;;; mab-org.el ends here} marker.
+@item
+@code{(provide 'mab-org)} is the last form in the file.
+@item
+Every public symbol is prefixed with @code{mab-org-}; every
+internal symbol is prefixed with @code{mab-org--}.
+@item
+@code{;;;###autoload} cookies on the public commands.
+@item
+@code{(require 'bibtex)} declares the only mandatory dependency
+explicitly.  @code{citar} and @code{ebib} are optional and are
+detected at runtime via @code{(featurep 'citar)} and
+@code{(eval-after-load 'ebib ...)}.
+@end itemize
+
+This Texinfo file is built by @code{make info} and produces
+@file{mab-org.info}, which carries the @code{@@dircategory Emacs}
+and @code{@@direntry} required to register the page with
+@code{info}'s top-level directory.  The MELPA recipe should list
+the @file{.texi} (and the resulting @file{.info}) under
+@code{:files} when an info-installable build is desired.
+
+@node GNU Free Documentation License
+@appendix GNU Free Documentation License
+
+This manual is licensed under the terms of the GNU Free Documentation
+License, Version 1.3 or any later version published by the Free
+Software Foundation; with no Invariant Sections, no Front-Cover
+Texts, and no Back-Cover Texts.
+
+The full text of the license is available at
+@url{https://www.gnu.org/licenses/fdl-1.3.html}.
+
+@node Function Index
+@unnumbered Function Index
+@printindex fn
+
+@node Variable Index
+@unnumbered Variable Index
+@printindex vr
+
+@bye
