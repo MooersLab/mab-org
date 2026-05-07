@@ -1,7 +1,7 @@
 # mab-org
 
 Org-mode helpers for assembling modular annotated bibliographies (mab) and lighter-weight annotated bibliographies (abib) inside Emacs. Works with `citar` and `ebib`, and stamps out new mab project files from a built-in LaTeX template.
-
+![Version](https://img.shields.io/static/v1?label=mab-org&message=0.1&color=brightcolor)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Emacs 27.1+](https://img.shields.io/badge/Emacs-27.1%2B-blueviolet.svg)](https://www.gnu.org/software/emacs/)
 
