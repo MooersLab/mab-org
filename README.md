@@ -472,6 +472,16 @@ Issues and pull requests are welcome on GitHub. When opening a PR, please.
 
 Released under the GNU General Public License, version 3 or later. See the header of `mab-org.el` for the full notice. The Texinfo manual is licensed under the GNU Free Documentation License, version 1.3 or later.
 
+## Funding
+
+## Sources of funding
+
+- NIH: R01 CA242845
+- NIH: R01 AI088011
+- NIH: P30 CA225520 (PI: R. Mannel)
+- NIH: P20 GM103640 and P30 GM145423 (PI: A. West)
+
+
 ## Acknowledgments
 
 Earlier prototypes of these helpers grew out of work captured in the [`ebib-to-mab-el`](https://github.com/MooersLab) repository, including the original `mab-add-bib-item` and the `mab-create-file` template. This release consolidates those features and the citar/wrap workflow under a single package name.
