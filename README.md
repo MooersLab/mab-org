@@ -472,8 +472,6 @@ Issues and pull requests are welcome on GitHub. When opening a PR, please.
 
 Released under the GNU General Public License, version 3 or later. See the header of `mab-org.el` for the full notice. The Texinfo manual is licensed under the GNU Free Documentation License, version 1.3 or later.
 
-## Funding
-
 ## Sources of funding
 
 - NIH: R01 CA242845
