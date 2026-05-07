@@ -1,0 +1,106 @@
+#+Title: Annotated Bibliography for Project 1006 AIrxOpt
+#+Options: toc:nil author:nil
+#+LATEX_COMPILER: lualatex
+#+LaTeX_CLASS:article
+#+LaTeX_CLASS_OPTIONS:[11pt,letterpaper,plainpages=false]
+#+LaTeX_HEADER:\usepackage[letterpaper, total={7in, 9in}]{geometry}
+#+LaTeX_HEADER:\usepackage{booktabs}
+#+LaTeX_HEADER:\usepackage{graphicx}
+#+LaTeX_HEADER:\usepackage{xurl} % permit line breaks in urls
+#+LaTeX_HEADER:\usepackage{hyperref}
+#+LaTeX_HEADER:\usepackage{lineno}
+#+LaTeX_HEADER:\usepackage{datetime2}
+#+LaTeX_HEADER:\usepackage{breakcites} % allow citation to wrap
+#+LaTeX_HEADER:\usepackage{makeidx}
+#+LaTeX_HEADER:\usepackage[utf8]{inputenc}
+#+LaTeX_HEADER:\usepackage{parskip}
+#+LaTeX_HEADER:\usepackage[T1]{fontenc}
+#+LaTeX_HEADER:\setmainfont{TeX Gyre Heros}
+#+LaTeX_HEADER:\usepackage{authblk}
+#+LaTeX_HEADER:\usepackage[labelfont=bf]{caption}
+#+LaTeX_HEADER:\DeclareCaptionType{equ}[][]
+#+LaTeX_HEADER:\usepackage[bottom]{footmisc}
+#+LaTeX_HEADER:\usepackage{amsfonts, mathtools, amssymb}
+#+LaTeX_HEADER:\usepackage{threeparttable}
+#+LaTeX_HEADER:\usepackage{wrapfig}
+#+LaTeX_HEADER:\pagestyle{myheadings}
+#+LaTeX_HEADER:\usepackage[user,totpages]{zref}
+#+LaTeX_HEADER:\usepackage{fancyhdr}
+#+LaTeX_HEADER:\pagestyle{fancy}
+#+LaTeX_HEADER:\fancyhf{}
+#+LaTeX_HEADER:\fancyhead[L]{\today}
+#+LaTeX_HEADER:\fancyhead[C]{1006 AI driven optimization in structural biology}
+#+LaTeX_HEADER:\fancyhead[R]{\thepage\ / \ztotpages}
+#+LaTeX_HEADER:\setlength{\headheight}{14pt}
+#+LaTeX_HEADER:\usepackage[acronym]{glossaries}
+#+LaTeX_HEADER:\usepackage[automake]{glossaries-extra}
+#+LaTeX_HEADER:\newglossary[nlg]{notation}{not}{ntn}{Notation}
+#+LaTeX_HEADER:\makeglossaries
+#+LaTeX_HEADER:\setabbreviationstyle[acronym]{long-short}
+#+LaTeX_HEADER:\loadglsentries{/Users/blaine/glossaries/acronyms}
+#+LaTeX_HEADER:\loadglsentries{/Users/blaine/glossaries/glossary}
+#+LaTeX_HEADER:\loadglsentries{/Users/blaine/glossaries/notation}
+#+LaTeX_HEADER:\bibliographystyle{cell}
+#+LaTeX_HEADER:\makeindex
+#+LaTeX_HEADER:\RequirePackage{authorindex}
+#+LaTeX_HEADER:\def\theaipage{\string\hyperpage{\thepage}}
+#+LaTeX_HEADER:\newcommand{\listofauthorsname}{List of Authors}
+#+LaTeX_HEADER:\newcommand{\listofauthors}
+#+LaTeX_HEADER:\phantomsection
+#+LaTeX_HEADER:\addcontentsline{toc}{chapter}{\listofauthorsname}
+#+LaTeX_HEADER:\noindent
+#+LaTeX_HEADER:\printauthorindex
+#+LaTeX_HEADER:\setcounter{tocdepth}{2}
+#+LaTeX_HEADER:\renewcommand{\refname}{Literature Cited}
+#+LaTeX_HEADER:\newenvironment{code}{\captionsetup{type=listing}}{}
+#+LaTeX_HEADER:\usepackage{bibentry}
+#+LaTeX_HEADER:\renewcommand{\familydefault}{\sfdefault}
+#+LaTeX_HEADER:\modulolinenumbers[1]
+#+LaTeX_HEADER:\setlength{\parindent}{0pt}
+#+LaTeX_HEADER:\author[1]{Graduate Student}
+#+LaTeX_HEADER:\author[2]{Senior Collaborator}
+#+LaTeX_HEADER:\author[3]{Staff Scientist}
+#+LaTeX_HEADER:\author[1,2,3]{Blaine Mooers\thanks{blaine-mooers@ou.edu, phone: 405-271-8300}}
+#+LaTeX_HEADER:\affil[1]{Department of Biochemistry and Physiology, University of Oklahoma Health Campus, Oklahoma City, Oklahoma, United States 73104}
+#+LaTeX_HEADER:\affil[2]{Stephenson Cancer Center, University of Oklahoma Health Campus, Oklahoma City, Oklahoma, United States 73104}
+#+LaTeX_HEADER:\affil[3]{Laboratory of Biomolecular Structure and Function, University of Oklahoma Health Campus, Oklahoma City, Oklahoma, United States 73104}
+#+LaTeX_HEADER:\nobibliography*
+
+
+
+#+LATEX:\maketitle
+#+LATEX:\tableofcontents
+
+#+LATEX: % Unnumbered sections are invisible to the table of contents unless added with \addcontentsline.
+#+LATEX:\section*{Illustrated and annotated bibliography}
+#+LATEX:\addcontentsline{toc}{section}{Illustrated and annotated bibliography}
+
+# Insert wrapped citekeys below this line.
+
+#+LATEX: \subsubsection*{\bibentry{Greenhill2020BayesianOptimizationAdaptiveExperimentalDesign}}
+#+LATEX: \addcontentsline{toc}{subsubsection}{Greenhill2020BayesianOptimizationAdaptiveExperimentalDesign}
+#+INCLUDE: /Users/blaine/abibNotes/Greenhill2020BayesianOptimizationAdaptiveExperimentalDesign.org
+The org-mode file is found [[file:/Users/blaine/abibNotes/Greenhill2020BayesianOptimizationAdaptiveExperimentalDesign.org][here]].
+The PDF file is found [[file:/Users/blaine/0papersLabeled/Greenhill2020BayesianOptimizationAdaptiveExperimentalDesign.pdf][here]].
+
+#+LaTEX: \backmatter
+
+#+LaTEX: \clearpage
+#+LATEX: \glsaddall[types={main,\acronymtype}]
+#+LATEX: \printglossary[type=\acronymtype]
+#+LATEX: \addcontentsline{toc}{section}{Acronyms}
+
+#+LaTEX: \clearpage
+#+LATEX: \printglossary
+#+LATEX: \addcontentsline{toc}{section}{Glossary}
+
+#+LaTEX: \clearpage
+#+LATEX: \glsaddall[types={notation}]
+#+LATEX: \printglossary[type=notation, title=Mathematical Notation]
+#+LATEX: \addcontentsline{toc}{section}{Mathematical Notation}
+
+#+LATEX: \addcontentsline{toc}{section}{Literature Cited}
+#+LATEX: \bibliography{/Users/blaine/Documents/global}
+
+#+LATEX: \addcontentsline{toc}{section}{Index}
+#+LATEX: \printindex
