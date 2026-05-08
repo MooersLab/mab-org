@@ -7,7 +7,7 @@
 @c %**end of header
 
 @copying
-This manual documents Mab-Org, version 0.5.0, an Emacs package that
+This manual documents Mab-Org, version 0.6.0, an Emacs package that
 provides Org-mode helpers for modular annotated bibliographies.
 
 Copyright @copyright{} 2026 Blaine Mooers.
@@ -114,6 +114,13 @@ note, and open it.
 From the @code{ebib} index buffer, append the wrapped block for the
 current entry to the configured mab project file.  Bound to @kbd{B}
 in @code{ebib-index-mode-map} once @code{ebib} is loaded.
+
+@item M-x mab-org-add-entry-from-note
+Pick an existing abibnote from
+@code{mab-org-notes-directory} and insert the corresponding
+wrapped block at point.  Useful when you already have notes
+written for citekeys that you now want to fold into a new mab
+project file.
 @end table
 
 @node Installation
@@ -159,6 +166,11 @@ mab-org RET} or set them in your init file.
 @vindex mab-org-notes-directory
 Directory that holds per-citekey Org notes.  Default
 @file{~/abibNotes/}.
+
+The directory is created automatically the first time a public
+command needs it (any wrap command, @code{mab-org-add-bib-item},
+or @code{mab-org-add-entry-from-note}), so the package works
+on a fresh machine without an explicit setup step.
 @end defopt
 
 @defopt mab-org-pdfs-directory
@@ -337,6 +349,25 @@ insert one @code{[cite:@@CITEKEY]} line at point for every BibTeX
 entry whose raw text contains the term (case insensitive).
 Returns the list of citekeys, so the function is also useful from
 other Lisp.
+@end deffn
+
+@deffn Command mab-org-add-entry-from-note note-path
+@findex mab-org-add-entry-from-note
+Insert at point a wrapped block referencing an existing
+abibnote.  The user is prompted to pick a @file{.org} file
+under @code{mab-org-notes-directory}; the directory is created
+on demand if it does not exist.
+
+The file's stem is used as the note stem in the wrapped block.
+The citekey for @code{\bibentry} and the PDF link is derived
+from the stem by stripping any project-number suffix
+(@code{mab-org-project-number-separator} followed by digits).
+A trailing single-letter (variant) suffix is left intact.
+
+The article-vs-book PDF link is chosen the same way as for
+@code{mab-org-wrap-citekey}: by looking up the BibTeX entry
+through citar (when loaded) or
+@code{mab-org-global-bib-file} as a fallback.
 @end deffn
 
 @deffn Command mab-org-add-bib-item &optional file-path
@@ -608,6 +639,24 @@ missing-section error, the rejected non-ebib buffer error, and
 automatic note creation.
 
 @item
+@code{mab-org-add-entry-from-note} round-trip behavior:
+stem-becomes-note-stem, project-suffix-stripped citekey, the
+article-vs-book link split, the rejection of a missing file,
+and the automatic creation of @code{mab-org-notes-directory}
+when it does not yet exist.
+
+@item
+@code{mab-org--ensure-notes-directory} creates the directory
+when missing and is idempotent; existing notes are not
+disturbed.
+
+@item
+@code{mab-org--citekey-from-note-stem} strips a project-number
+suffix when present (with the default and a custom separator),
+leaves bare and letter-variant stems unchanged, and treats an
+empty separator as a request to suppress stripping entirely.
+
+@item
 Public command surface: every command listed in @ref{Public
 Commands} is bound and interactive.
 @end itemize
@@ -744,6 +793,15 @@ on @code{(eval-after-load 'ebib ...)}.
 @chapter Changelog
 
 @table @strong
+@item 0.6.0
+Added @code{mab-org-add-entry-from-note}.  This command picks an
+existing abibnote from @code{mab-org-notes-directory} and inserts
+a wrapped block at point that references it.  The citekey is
+derived from the file stem by stripping any project-number
+suffix; letter variants are left intact.  The
+@code{mab-org-notes-directory} is now created automatically on
+first use.
+
 @item 0.5.0
 Added an optional project-number suffix on abibnote stems,
 controlled by @code{mab-org-project-number-in-note-stem} (modes
