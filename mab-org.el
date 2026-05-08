@@ -7,7 +7,7 @@
 ;; Department: Biochemistry and Physiology
 ;; Institution: University of Oklahoma Health Campus
 ;; URL: https://github.com/MooersLab/mab-org
-;; Version: 0.5.0
+;; Version: 0.6.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: bib, tex, org, citar, ebib, bibliography, tools
 
@@ -53,13 +53,14 @@
 ;;
 ;; Public commands
 ;;
-;;     `mab-org-wrap-citekey'         (mab style; links visible)
-;;     `mab-org-wrap-citekey-abib'    (abib style; links inside COMMENT)
-;;     `mab-org-wrap-region'          (bulk wrap)
-;;     `mab-org-insert-matching-keys' (search the global bib)
-;;     `mab-org-create-project'       (stamp out a new mab project)
-;;     `mab-org-open-file'            (find or create a mab project)
-;;     `mab-org-add-bib-item'         (append from inside ebib)
+;;     `mab-org-wrap-citekey'           (mab style; links visible)
+;;     `mab-org-wrap-citekey-abib'      (abib style; links inside COMMENT)
+;;     `mab-org-wrap-region'            (bulk wrap)
+;;     `mab-org-insert-matching-keys'   (search the global bib)
+;;     `mab-org-create-project'         (stamp out a new mab project)
+;;     `mab-org-open-file'              (find or create a mab project)
+;;     `mab-org-add-bib-item'           (append from inside ebib)
+;;     `mab-org-add-entry-from-note'    (pick an existing abibnote)
 
 ;;; Code:
 
@@ -426,18 +427,48 @@ BASE-STEM.  Otherwise prompt the user via
            project-stem)
           ('quit (user-error "Wrap aborted by user")))))))
 
+(defun mab-org--ensure-notes-directory ()
+  "Create `mab-org-notes-directory' if it does not yet exist.
+This is the directory that holds the per-citekey Org notes.
+The function returns the directory as a path with a trailing
+slash so the caller can pass it directly to functions that
+expect a directory.
+
+Called at the start of every public command that reads from or
+writes to the notes directory, so the package is usable on a
+fresh machine without an explicit setup step."
+  (let ((dir (file-name-as-directory mab-org-notes-directory)))
+    (unless (file-directory-p dir)
+      (make-directory dir t)
+      (message "Created abibnote directory at %s" dir))
+    dir))
+
 (defun mab-org--ensure-note-file (stem)
   "Create an empty abibnote file for STEM if no note exists yet.
-The file is written under `mab-org-notes-directory', and the
-directory is created with `make-directory' when missing.  Returns
-the absolute path to the note."
-  (let* ((dir (file-name-as-directory mab-org-notes-directory))
+The file is written under `mab-org-notes-directory'.  The
+directory is created with `mab-org--ensure-notes-directory'
+when missing.  Returns the absolute path to the note."
+  (let* ((dir (mab-org--ensure-notes-directory))
          (path (mab-org--note-path stem dir)))
-    (unless (file-directory-p dir)
-      (make-directory dir t))
     (unless (file-exists-p path)
       (with-temp-file path (insert "")))
     path))
+
+(defun mab-org--citekey-from-note-stem (stem)
+  "Return the citekey embedded in note STEM.
+When STEM ends with `mab-org-project-number-separator' followed
+by one or more digits (a project-number suffix), return the part
+of STEM before that suffix.  Otherwise return STEM unchanged.
+
+Letter-variant suffixes (a single trailing lowercase letter)
+are not stripped, because they cannot be reliably distinguished
+from citekeys that legitimately end in a single letter."
+  (let* ((sep (regexp-quote mab-org-project-number-separator))
+         (re  (concat "\\`\\(.+?\\)" sep "[0-9]+\\'")))
+    (if (and (not (string-empty-p mab-org-project-number-separator))
+             (string-match re stem))
+        (match-string 1 stem)
+      stem)))
 
 ;;;; Project template
 
@@ -1034,6 +1065,46 @@ file) if it does not already exist."
           (mab-org--insert-into-mab-buffer wrapped))
         (save-buffer)))
     (message "Added %s to %s (note stem %s)" key target note-stem)))
+
+;;;###autoload
+(defun mab-org-add-entry-from-note (note-path)
+  "Insert an entry at point referencing an existing abibnote.
+NOTE-PATH is a `.org' file, typically under
+`mab-org-notes-directory'.  The file's stem (filename without
+the .org extension) becomes the note-stem in the wrapped block.
+The citekey is derived from the stem by stripping any
+project-number suffix (`mab-org-project-number-separator'
+followed by digits); a letter-variant suffix (a single trailing
+lowercase letter) is left intact, because it cannot be
+reliably distinguished from citekeys that legitimately end in
+a single letter.
+
+The article-vs-book link choice follows the BibTeX entry for
+the derived citekey, looked up via citar (when loaded) or
+`mab-org-global-bib-file' as a fallback.
+
+When called interactively, the user is prompted to pick a file
+from `mab-org-notes-directory'.  The directory is created on
+demand if it does not yet exist."
+  (interactive
+   (progn
+     (mab-org--ensure-notes-directory)
+     (list (read-file-name
+            "Existing abibnote to reference: "
+            (file-name-as-directory mab-org-notes-directory) nil t nil
+            (lambda (n)
+              (or (file-directory-p n)
+                  (string-suffix-p ".org" n)))))))
+  (mab-org--ensure-notes-directory)
+  (unless (and note-path (file-exists-p note-path))
+    (user-error "Note file does not exist: %s" note-path))
+  (let* ((stem (file-name-base note-path))
+         (citekey (mab-org--citekey-from-note-stem stem))
+         (bibtex-entry (mab-org--lookup-bibtex-entry citekey))
+         (book-p (mab-org--book-entry-p bibtex-entry))
+         (wrapped (mab-org--render-mab-wrapped-text citekey stem book-p)))
+    (insert wrapped)
+    (message "Inserted entry for %s (note stem %s)" citekey stem)))
 
 ;;;###autoload
 (eval-after-load 'ebib
