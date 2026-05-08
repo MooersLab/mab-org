@@ -20,7 +20,7 @@ I use a four-digit number to keep track of individual writing projects.
 This four-digit number is used in the title of the mab.org file to distinguish mabs on a project-specific basis.
 You could use the number 0000 if you wanted to create a single master annotated bibliography; however, I assume one wants to stay focused on a specific project by creating a project-specific annotated bibliography.
 
-Interactive functions in the package to facilitate inserting selected BibTeX entries via ebib or directly from the BibTeX file.
+Interactive functions in the package facilitate inserting selected BibTeX entries via ebib or directly from the BibTeX file.
 The package is currently wired for use with the citar package for bibliography management.
 
 The master org-mode file contains org-mode-style hyperlinks to the org-mode note file, enabling rapid access for making additions and edits.
