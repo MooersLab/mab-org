@@ -30,7 +30,7 @@ Most of the content of the master file is in LaTeX, but the org-mode hyperlinks 
 Here, org-mode is used as a thin wrapper around LaTeX, which does most of the heavy lifting.
 However, the user does not need to know any LaTeX to use the template file to build an mab.
 
-It is assumed that most of the benefit the user gains comes from assembling the notes, not necessarily from the perusal of the final PDF.
+It is assumed that most of the benefit the user gains comes from assembling the notes, not necessarily from perusing the final PDF.
 The user's knowledge is built during the note assembly process.
 Reading the final PDF is useful for refreshing one's memory after an interruption in work on the project.
 
@@ -53,7 +53,7 @@ The note files start as blank files so that they can be easily included in other
 
 However, the Zettelkasten method requires significant mental overhead and time to build and maintain. 
 Most harried academics do not have time to generate atomic notes.
-They have to quickly wrap their brains around bodies of literature when assembling a paper or grant application against a deadline. 
+They have to quickly wrap their heads around the body of literature when assembling a paper or grant application under a deadline. 
 They also have to maintain their focus on one project while working with literature that already pulls their attention in many directions.
 The idea is to use this annotated bibliography to support attention management during such focused labor.
 The content of that annotated bibliography can be utilized later, when time permits, to generate atomic notes for a zettelkasten.
