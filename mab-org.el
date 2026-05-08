@@ -7,7 +7,7 @@
 ;; Department: Biochemistry and Physiology
 ;; Institution: University of Oklahoma Health Campus
 ;; URL: https://github.com/MooersLab/mab-org
-;; Version: 0.4.0
+;; Version: 0.5.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: bib, tex, org, citar, ebib, bibliography, tools
 
@@ -107,6 +107,42 @@ When `mab-org-wrap-region' finds more citations than this in the
 active region, the user is asked to confirm before any work
 begins."
   :type 'integer
+  :group 'mab-org)
+
+(defcustom mab-org-project-number-in-note-stem nil
+  "How to incorporate the project number into the abibnote stem.
+The value is one of:
+
+  nil   Never include the project number; the stem is the
+        citekey, and variants use a single-letter suffix.  This
+        is the existing behavior.
+
+  t     Always include the project number; the stem is
+        CITEKEY<sep>PROJECT-NUMBER, and letter variants are
+        applied on top of that base.  When the project number is
+        empty the package falls back to CITEKEY and emits a
+        message; nothing aborts.
+
+  ask   Include the project number on demand.  The default stem
+        is the citekey.  When a note already exists for that
+        citekey, the variant prompt offers a project-suffixed
+        stem alongside the letter-suffixed stem.  Pick the
+        project variant to fork the note for the current
+        project."
+  :type '(choice (const :tag "Never include project number" nil)
+                 (const :tag "Always include project number" t)
+                 (const :tag "Ask when a note already exists" ask))
+  :group 'mab-org)
+
+(defcustom mab-org-project-number-separator "-"
+  "Separator placed between the citekey and the project number.
+Used only when the resolved stem includes the project number,
+i.e. when `mab-org-project-number-in-note-stem' is non-nil and a
+project number is available.  The default is a hyphen.  An
+empty string is allowed but is a poor choice for citekeys that
+already end in digits, because CITEKEY1997 followed by 2156
+would become an ambiguous CITEKEY19972156."
+  :type 'string
   :group 'mab-org)
 
 (defcustom mab-org-book-entry-regexp "\\`[[:space:]]*@book"
@@ -271,6 +307,11 @@ are returned in the order they appear in the buffer."
   "Return the full path to STEM.org inside DIRECTORY."
   (expand-file-name (concat stem ".org") directory))
 
+(defun mab-org--note-stem-with-project (citekey project-number)
+  "Return CITEKEY with PROJECT-NUMBER appended.
+The separator is `mab-org-project-number-separator'."
+  (concat citekey mab-org-project-number-separator project-number))
+
 (defun mab-org--next-variant-letter (citekey directory)
   "Return the next available variant letter for CITEKEY in DIRECTORY.
 Walks the alphabet in order and returns the first lowercase
@@ -285,21 +326,35 @@ through z is already taken."
         (throw 'next letter)))
     nil))
 
-(defun mab-org--prompt-for-note-action (citekey next-letter)
+(defun mab-org--prompt-for-note-action (citekey next-letter
+                                                &optional project-stem)
   "Ask the user how to handle an existing CITEKEY.org note.
-NEXT-LETTER, when non-nil, is the lowercase character that would
-be appended to CITEKEY for the next variant.  Return one of the
-symbols `reuse', `variant', or `quit'.
 
-When NEXT-LETTER is nil, the variant option is omitted from the
-prompt because every single-letter variant is already taken."
+NEXT-LETTER, when non-nil, is the lowercase character that would
+be appended to CITEKEY for the next variant.
+
+PROJECT-STEM, when non-nil, is the full stem to use for a
+project-specific variant (typically CITEKEY-PROJECT).  It is
+offered only when non-nil, and only when the corresponding
+PROJECT-STEM.org file does not already exist; the caller is
+responsible for that pre-check.
+
+Return one of the symbols `reuse', `variant', `project-variant',
+or `quit'.  When NEXT-LETTER is nil the letter-variant option
+is omitted from the prompt; when PROJECT-STEM is nil the
+project-variant option is omitted."
   (let* ((variant-desc (when next-letter
                          (format "Create a variant note as %s%c.org"
                                  citekey next-letter)))
+         (project-desc (when project-stem
+                         (format "Create a project-specific variant as %s.org"
+                                 project-stem)))
          (choices `((?r "reuse"
                         "Reuse the existing note for this citekey")
                     ,@(when next-letter
                         `((?v "variant" ,variant-desc)))
+                    ,@(when project-stem
+                        `((?p "project-variant" ,project-desc)))
                     (?q "quit" "Abort the wrap operation")))
          (answer (read-multiple-choice
                   (format "Note %s.org already exists" citekey)
@@ -307,28 +362,68 @@ prompt because every single-letter variant is already taken."
     (pcase (car answer)
       (?r 'reuse)
       (?v 'variant)
+      (?p 'project-variant)
       (?q 'quit))))
 
-(defun mab-org--resolve-note-stem (citekey directory)
-  "Return the citekey stem for the abibnote in DIRECTORY.
-If CITEKEY.org does not yet exist in DIRECTORY, return CITEKEY
-unchanged.  Otherwise prompt the user via
-`mab-org--prompt-for-note-action' and return CITEKEY (reuse), or
-CITEKEY with the next available letter appended (variant), or
-signal `user-error' (quit)."
-  (let ((dir (file-name-as-directory directory)))
-    (if (not (file-exists-p (mab-org--note-path citekey dir)))
-        citekey
-      (let* ((next-letter (mab-org--next-variant-letter citekey dir))
-             (action (mab-org--prompt-for-note-action citekey next-letter)))
+(defun mab-org--resolve-note-stem (citekey directory &optional project-number)
+  "Return the abibnote stem to use in DIRECTORY for CITEKEY.
+PROJECT-NUMBER, when non-nil and non-empty, may participate in
+the stem according to `mab-org-project-number-in-note-stem'.
+
+The function chooses a base stem first.  In mode t, the base
+stem is CITEKEY-PROJECT-NUMBER (with
+`mab-org-project-number-separator' between them) when a project
+number is supplied; when no usable project number is supplied,
+mode t falls back to CITEKEY and emits a message.  In modes nil
+and ask, the base stem is CITEKEY.
+
+If <BASE-STEM>.org does not yet exist in DIRECTORY, return
+BASE-STEM.  Otherwise prompt the user via
+`mab-org--prompt-for-note-action' and return one of:
+
+  - BASE-STEM                   (reuse)
+  - BASE-STEM<letter>           (letter variant)
+  - CITEKEY-PROJECT-NUMBER      (project variant; mode ask only)
+  - signal `user-error'         (quit)"
+  (let* ((dir (file-name-as-directory directory))
+         (have-project (and project-number
+                            (not (string-empty-p project-number))))
+         (project-stem
+          (and have-project
+               (mab-org--note-stem-with-project citekey project-number)))
+         (base-stem
+          (cond
+           ((and (eq mab-org-project-number-in-note-stem t) have-project)
+            project-stem)
+           ((and (eq mab-org-project-number-in-note-stem t) (not have-project))
+            (message
+             "mab-org: no project number supplied; using bare citekey")
+            citekey)
+           (t citekey))))
+    (if (not (file-exists-p (mab-org--note-path base-stem dir)))
+        base-stem
+      (let* ((next-letter (mab-org--next-variant-letter base-stem dir))
+             (offer-project
+              (and (eq mab-org-project-number-in-note-stem 'ask)
+                   project-stem
+                   (not (string-equal project-stem base-stem))
+                   (not (file-exists-p
+                         (mab-org--note-path project-stem dir)))))
+             (action (mab-org--prompt-for-note-action
+                      base-stem next-letter
+                      (and offer-project project-stem))))
         (pcase action
-          ('reuse citekey)
+          ('reuse base-stem)
           ('variant
            (unless next-letter
              (user-error
               "All single-letter variants of %s are already taken"
-              citekey))
-           (format "%s%c" citekey next-letter))
+              base-stem))
+           (format "%s%c" base-stem next-letter))
+          ('project-variant
+           (unless project-stem
+             (user-error "No project number available for project variant"))
+           project-stem)
           ('quit (user-error "Wrap aborted by user")))))))
 
 (defun mab-org--ensure-note-file (stem)
@@ -709,7 +804,7 @@ without changing the buffer."
                                    default-project-number)
                            nil nil default-project-number))
              (note-stem (mab-org--resolve-note-stem
-                         citekey mab-org-notes-directory))
+                         citekey mab-org-notes-directory project-number))
              (bibtex-entry (mab-org--lookup-bibtex-entry citekey))
              (book-p (mab-org--book-entry-p bibtex-entry))
              (mab-dir (concat "mab" project-number "/"))
@@ -770,7 +865,7 @@ prompt as `mab-org-wrap-citekey' is offered."
                                    default-project-number)
                            nil nil default-project-number))
              (note-stem (mab-org--resolve-note-stem
-                         citekey mab-org-notes-directory))
+                         citekey mab-org-notes-directory project-number))
              (bibtex-entry (mab-org--lookup-bibtex-entry citekey))
              (book-p (mab-org--book-entry-p bibtex-entry))
              (bib-file-name (concat "ab" project-number ".bib"))
@@ -922,19 +1017,23 @@ file) if it does not already exist."
                          "Mab file: ")
                        (and default (file-name-directory default))
                        default))))
+         (project-number
+          (mab-org--default-project-number-from-filename target))
+         (note-stem (mab-org--resolve-note-stem
+                     key mab-org-notes-directory project-number))
          (bibtex-entry (mab-org--lookup-bibtex-entry key))
          (book-p (mab-org--book-entry-p bibtex-entry))
-         (wrapped (mab-org--render-mab-wrapped-text key key book-p)))
+         (wrapped (mab-org--render-mab-wrapped-text key note-stem book-p)))
     (unless (file-exists-p target)
       (user-error "File %s does not exist" target))
     (setq mab-org-mab-path target)
-    (mab-org--ensure-note-file key)
+    (mab-org--ensure-note-file note-stem)
     (let ((buf (find-file-noselect target)))
       (with-current-buffer buf
         (save-excursion
           (mab-org--insert-into-mab-buffer wrapped))
         (save-buffer)))
-    (message "Added %s to %s" key target)))
+    (message "Added %s to %s (note stem %s)" key target note-stem)))
 
 ;;;###autoload
 (eval-after-load 'ebib
