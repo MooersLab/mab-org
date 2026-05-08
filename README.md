@@ -216,6 +216,8 @@ Customize through `M-x customize-group RET mab-org RET` or set in your init file
 | `mab-org-global-bib-file` | `~/Documents/global.bib` | Master BibTeX library searched by `mab-org-insert-matching-keys` |
 | `mab-org-region-confirm-threshold` | `10` | Citation count above which region wrapping prompts |
 | `mab-org-book-entry-regexp` | `\`[[:space:]]*@book` | Matches BibTeX entries that should use the book PDF link |
+| `mab-org-project-number-in-note-stem` | `nil` | `nil`, `t`, or `ask`. Whether the project number joins the abibnote filename stem |
+| `mab-org-project-number-separator` | `"-"` | Separator between citekey and project number when the suffix is in use |
 | `mab-org-base-directory` | `nil` | Default base directory for new mab project files |
 | `mab-org-mab-path` | `nil` | Default destination for `mab-org-add-bib-item` |
 
@@ -516,6 +518,52 @@ To extend the rule, set `mab-org-book-entry-regexp`. Example:
 (setq mab-org-book-entry-regexp
       "\\`[[:space:]]*@\\(book\\|inbook\\|incollection\\)")
 ```
+
+## Project-number suffix on abibnote stems
+
+The package can optionally append the current project number to the abibnote filename stem. Three modes, controlled by `mab-org-project-number-in-note-stem`.
+
+- `nil` (default). The stem is the citekey. Variants use a single-letter suffix. This is the existing behavior.
+
+  ```
+  ~/abibNotes/Coppens1997Xray.org
+  ~/abibNotes/Coppens1997Xraya.org   # letter variant
+  ```
+
+- `t`. The stem is `<citekey><sep><project-number>`. Letter variants apply on top of that base. Pick this mode when each project should have its own copy of every note.
+
+  ```
+  ~/abibNotes/Coppens1997Xray-2156.org
+  ~/abibNotes/Coppens1997Xray-3010.org
+  ~/abibNotes/Coppens1997Xray-2156a.org   # letter variant within 2156
+  ```
+
+  When the project number is empty (no value entered at the wrap prompt, or no digit-only stem in the destination file name for `mab-org-add-bib-item`), the package falls back to the bare citekey and emits a message.
+
+- `ask`. The default stem is the citekey. When a note already exists for that citekey, the variant prompt offers a project-suffixed stem alongside the letter-suffixed stem. The user shares notes across projects most of the time and forks a project-specific copy on demand.
+
+  The prompt for an existing `Coppens1997Xray.org` in mode `ask` with project `2156`:
+
+  ```
+  Note Coppens1997Xray.org already exists
+    r  reuse              Reuse the existing note for this citekey
+    v  variant            Create a variant note as Coppens1997Xraya.org
+    p  project-variant    Create a project-specific variant as
+                          Coppens1997Xray-2156.org
+    q  quit               Abort the wrap operation
+  ```
+
+The separator can be customized with `mab-org-project-number-separator` (default `"-"`).
+
+```elisp
+(setq mab-org-project-number-in-note-stem 'ask)
+;; Or: always include the project number.
+(setq mab-org-project-number-in-note-stem t)
+;; Override the separator.
+(setq mab-org-project-number-separator "_")
+```
+
+Switching from `nil` to `t` does not rename existing notes. New entries land at the project-suffixed path; old shared notes remain at the bare-citekey path.
 
 ## How variant notes work
 
