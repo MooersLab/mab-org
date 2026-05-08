@@ -337,6 +337,125 @@ original citekey."
       (should-error (mab-org--resolve-note-stem "K1" dir)
                     :type 'user-error))))
 
+;;;; Project-number suffix
+
+(ert-deftest mab-org-test-note-stem-with-project-default-separator ()
+  "The default separator is `-'."
+  (let ((mab-org-project-number-separator "-"))
+    (should (equal (mab-org--note-stem-with-project "K1" "2156")
+                   "K1-2156"))))
+
+(ert-deftest mab-org-test-note-stem-with-project-custom-separator ()
+  "A custom separator is honored."
+  (let ((mab-org-project-number-separator "_"))
+    (should (equal (mab-org--note-stem-with-project "K1" "2156")
+                   "K1_2156"))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-nil-ignores-project ()
+  "Mode nil returns the bare citekey even when a project number is given."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem nil))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (&rest _)
+                   (error "read-multiple-choice should not be called"))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1"))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-t-uses-project ()
+  "Mode t returns CITEKEY-PROJECT when a project number is supplied."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem t))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (&rest _)
+                   (error "read-multiple-choice should not be called"))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1-2156"))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-t-falls-back-when-empty ()
+  "Mode t falls back to the citekey when project number is empty or nil."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem t))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (&rest _)
+                   (error "read-multiple-choice should not be called"))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "")  "K1"))
+        (should (equal (mab-org--resolve-note-stem "K1" dir nil) "K1"))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-t-letter-variant ()
+  "In mode t the letter walk uses the project-suffixed base stem."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem t))
+      (with-temp-file (expand-file-name "K1-2156.org" dir) (insert ""))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (_prompt choices) (assoc ?v choices))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1-2156a"))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-ask-no-conflict-no-prompt ()
+  "Mode ask never prompts when no note exists for the bare citekey."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem 'ask))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (&rest _)
+                   (error "read-multiple-choice should not be called"))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1"))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-ask-offers-project-variant ()
+  "Mode ask offers the project-variant choice and returns CITEKEY-PROJECT."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem 'ask)
+          captured-choices)
+      (with-temp-file (expand-file-name "K1.org" dir) (insert ""))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (_prompt choices)
+                   (setq captured-choices choices)
+                   (assoc ?p choices))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1-2156"))
+        ;; The project-variant option must have been on the menu.
+        (should (assoc ?p captured-choices))
+        ;; The reuse and quit options remain.
+        (should (assoc ?r captured-choices))
+        (should (assoc ?q captured-choices))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-ask-no-project-no-p-option ()
+  "Mode ask omits the project-variant option when no project number."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem 'ask)
+          captured-choices)
+      (with-temp-file (expand-file-name "K1.org" dir) (insert ""))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (_prompt choices)
+                   (setq captured-choices choices)
+                   (assoc ?r choices))))
+        (mab-org--resolve-note-stem "K1" dir nil)
+        (should-not (assoc ?p captured-choices))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-ask-suppresses-p-when-target-exists ()
+  "Mode ask omits the project-variant option when its target already exists."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem 'ask)
+          captured-choices)
+      (with-temp-file (expand-file-name "K1.org" dir) (insert ""))
+      (with-temp-file (expand-file-name "K1-2156.org" dir) (insert ""))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (_prompt choices)
+                   (setq captured-choices choices)
+                   (assoc ?r choices))))
+        (mab-org--resolve-note-stem "K1" dir "2156")
+        (should-not (assoc ?p captured-choices))))))
+
+(ert-deftest mab-org-test-resolve-note-stem-mode-ask-letter-variant ()
+  "Mode ask still supports letter variants."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-project-number-in-note-stem 'ask))
+      (with-temp-file (expand-file-name "K1.org" dir) (insert ""))
+      (cl-letf (((symbol-function 'read-multiple-choice)
+                 (lambda (_prompt choices) (assoc ?v choices))))
+        (should (equal (mab-org--resolve-note-stem "K1" dir "2156")
+                       "K1a"))))))
+
 ;;;; Book-entry detection
 
 (ert-deftest mab-org-test-book-entry-p-detects-book ()
@@ -622,6 +741,31 @@ section after the bibliography heading."
           (mab-org-add-bib-item path)))
       (let ((body (mab-org-test--read-file path)))
         (should (string-match-p "\\\\bibentry{Foo2020Bar}" body))))))
+
+(ert-deftest mab-org-test-add-bib-item-uses-project-suffixed-stem-when-mode-t ()
+  "With mode t, the wrapped block references CITEKEY-PROJECT.org."
+  (mab-org-test-with-temp-dir dir
+    (let* ((mab-org-notes-directory dir)
+           (mab-org-pdfs-directory "/tmp/papers/")
+           (mab-org-books-directory "/tmp/books/")
+           (mab-org-project-number-in-note-stem t)
+           (mab-org-project-number-separator "-")
+           (mab-org-global-bib-file (expand-file-name "global.bib" dir))
+           (path (expand-file-name "mab1234.org" dir)))
+      (with-temp-file mab-org-global-bib-file
+        (insert "@article{Foo2020Bar, title={x}}\n"))
+      (mab-org-test--make-mab-file path 'with-backmatter)
+      (cl-letf (((symbol-function 'derived-mode-p)
+                 (lambda (mode) (eq mode 'ebib-index-mode)))
+                ((symbol-function 'ebib--get-key-at-point)
+                 (lambda () "Foo2020Bar")))
+        (with-temp-buffer
+          (mab-org-add-bib-item path)))
+      (should (file-exists-p (expand-file-name "Foo2020Bar-1234.org" dir)))
+      (should-not (file-exists-p (expand-file-name "Foo2020Bar.org" dir)))
+      (let ((body (mab-org-test--read-file path)))
+        (should (string-match-p "\\\\bibentry{Foo2020Bar}" body))
+        (should (string-match-p "Foo2020Bar-1234\\.org" body))))))
 
 (ert-deftest mab-org-test-add-bib-item-uses-book-link-for-book-entry ()
   "When the entry is `@book' the wrapped block uses the books directory."
