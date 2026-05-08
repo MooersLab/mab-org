@@ -5,6 +5,7 @@
 #   make test          Run the ERT test suite in batch mode.
 #   make compile       Byte-compile mab-org.el to mab-org.elc.
 #   make info          Build mab-org.info from mab-org.texi.
+#   make setup         Create mab-org-notes-directory if it does not exist.
 #   make install       Install mab-org.el into $(EMACSDIR).
 #   make install-info  Install mab-org.info into $(INFODIR).
 #   make uninstall     Remove the installed mab-org.el.
@@ -47,7 +48,7 @@ INFODIR  ?= $(PREFIX)/share/info
 
 EMACS_BATCH = $(EMACS) -Q --batch --eval "(setq load-prefer-newer t)" -L .
 
-.PHONY: all test compile info lint clean help \
+.PHONY: all test compile info setup lint clean help \
         install uninstall install-info uninstall-info
 
 all: compile test
@@ -58,6 +59,7 @@ help:
 	@echo "  make test           Run the ERT suite in batch mode."
 	@echo "  make compile        Byte-compile $(SRC) to $(ELC)."
 	@echo "  make info           Build $(INFO) from $(TEXI)."
+	@echo "  make setup          Create mab-org-notes-directory."
 	@echo "  make install        Install $(SRC) to \$$(EMACSDIR)."
 	@echo "  make install-info   Install $(INFO) to \$$(INFODIR)."
 	@echo "  make uninstall      Remove the installed $(SRC)."
@@ -90,6 +92,21 @@ test:
 
 lint:
 	$(EMACS_BATCH) --eval "(checkdoc-file \"$(SRC)\")"
+
+# Ensure mab-org-notes-directory exists at its current value.  In batch
+# mode without your init.el, that value is the package default
+# (~/abibNotes/).  If you have customized the variable elsewhere, set
+# MAB_ORG_NOTES_DIR on the make command line:
+#
+#   make MAB_ORG_NOTES_DIR=$$HOME/research/abibNotes setup
+setup:
+	$(EMACS_BATCH) -L . -l $(SRC) \
+	    $(if $(MAB_ORG_NOTES_DIR), \
+	      --eval "(setq mab-org-notes-directory \"$(MAB_ORG_NOTES_DIR)\")",) \
+	    --eval "(progn \
+	             (mab-org--ensure-notes-directory) \
+	             (princ (format \"Notes directory ready: %s\n\" \
+	                            mab-org-notes-directory)))"
 
 clean:
 	rm -f $(ELC) $(TESTELC) $(INFO)
