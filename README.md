@@ -4,7 +4,61 @@
 
 # mab-org
 
-Org-mode helpers for assembling modular annotated bibliographies (mab) and lighter-weight annotated bibliographies (abib) inside Emacs. Works with `citar` and `ebib`, and stamps out new mab project files from a built-in LaTeX template.
+The package provides helpers for assembling modular annotated bibliographies (mab) and lighter-weight annotated bibliographies (abib) in org-mode inside Emacs. 
+These annotated bibliographies do not use the annote field of BibTeX because the Biber engine prevents it from being used with multiparagraph entries and the inclusion of graphical objects.
+Instead, these richly annotated notes about a paper are stored in paper-specific org-mode files.
+The inclusion of graphical objects in the annotation triggers faster recall of the content of the original source file.
+
+A master file containing include statements controls the order in which select note files are imported when assembling the PDF of the mab.
+You have the freedom to enter the entries in alphabetical order or to make clusters of related entries by subtopic.
+
+This package includes a master template file and functions to set up an mab for a new project.
+Here, a project is defined as a writing task that requires repeated revisits and cannot be completed in a single sitting.
+Such projects include research papers, grant applications, lectures, seminars, blog posts, and books.
+
+I use a four-digit number to keep track of individual writing projects.
+This four-digit number is used in the title of the mab.org file to distinguish mabs on a project-specific basis.
+You could use the number 0000 if you wanted to create a single master annotated bibliography; however, I assume one wants to stay focused on a specific project by creating a project-specific annotated bibliography.
+
+Interactive functions in the package to facilitate inserting selected BibTeX entries via ebib or directly from the BibTeX file.
+The package is currently wired for use with the citar package for bibliography management.
+
+The master org-mode file contains org-mode-style hyperlinks to the org-mode note file, enabling rapid access for making additions and edits.
+It also contains a direct link to the PDF to make checking it easier.
+
+Most of the content of the master file is in LaTeX, but the org-mode hyperlinks are an attractive feature that ease working with the note files.
+Here, org-mode is used as a thin wrapper around LaTeX, which does most of the heavy lifting.
+However, the user does not need to know any LaTeX to use the template file to build an mab.
+
+It is assumed that most of the benefit the user gains comes from assembling the notes, not necessarily from the perusal of the final PDF.
+The user's knowledge is built during the note assembly process.
+Reading the final PDF is useful for refreshing one's memory after an interruption in work on the project.
+
+Of course, the PDF supports rapid searching.
+There are many hyperlinks built into the table of contents and indices.
+Nonetheless, hyperlinks can be utilized within the document to introduce custom links.
+These hyperlinks support rapid navigation of the document.
+
+The master file also supports all the auxiliary features you might expect in a LaTeX book document. 
+This includes a table of contents, glossaries, lists of symbols and acronyms, indices, and a literature cited.
+The last feature supports the tracking of literature that is not included as entries in the annotated bibliography.
+These features are absent from most annotated bibliographies.
+
+
+## Why a mab in the for knowledge management when there is org-roam?
+
+The Zettelkasten method, supported by org-roam, is a powerful way to build knowledge from atomic notes.
+The mab note files could be imported into literature notes in org-roam.
+The note files start as blank files so that they can be easily included in other master documents.
+
+However, the Zettelkasten method requires significant mental overhead and time to build and maintain. 
+Most harried academics do not have time to generate atomic notes.
+They have to quickly wrap their brains around bodies of literature when assembling a paper or grant application against a deadline. 
+They also have to maintain their focus on one project while working with literature that already pulls their attention in many directions.
+The idea is to use this annotated bibliography to support attention management during such focused labor.
+The content of that annotated bibliography can be utilized later, when time permits, to generate atomic notes for a zettelkasten.
+
+
 
 ---
 
