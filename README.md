@@ -88,7 +88,7 @@ For a system-wide install, set `PREFIX` and run as root.
 sudo make PREFIX=/usr/local install install-info
 ```
 
-### `use-package` recipe
+### `use-package` recipe (local checkout)
 
 ```elisp
 (use-package mab-org
@@ -100,6 +100,54 @@ sudo make PREFIX=/usr/local install install-info
              mab-org-wrap-region
              mab-org-insert-matching-keys
              mab-org-add-bib-item))
+```
+
+### Installation via `straight.el` and `use-package`
+
+When you already use [`straight.el`](https://github.com/radian-software/straight.el) with `use-package`, the simplest recipe pulls `mab-org` directly from GitHub.
+
+```elisp
+(use-package mab-org
+  :straight (mab-org :type git :host github :repo "MooersLab/mab-org")
+  :commands (mab-org-create-project
+             mab-org-open-file
+             mab-org-wrap-citekey
+             mab-org-wrap-citekey-abib
+             mab-org-wrap-region
+             mab-org-insert-matching-keys
+             mab-org-add-bib-item))
+```
+
+If you also want the Texinfo manual to land in `straight`'s build directory (so a future `info` install step can read it), add a `:files` clause that picks up the `.texi` source alongside the default Lisp files.
+
+```elisp
+(use-package mab-org
+  :straight (mab-org :type git :host github :repo "MooersLab/mab-org"
+                     :files (:defaults "*.texi"))
+  :commands (mab-org-create-project
+             mab-org-open-file
+             mab-org-wrap-citekey
+             mab-org-wrap-citekey-abib
+             mab-org-wrap-region
+             mab-org-insert-matching-keys
+             mab-org-add-bib-item))
+```
+
+To track a specific branch, tag, or revision, extend the recipe.
+
+```elisp
+:straight (mab-org :type git :host github :repo "MooersLab/mab-org"
+                   :branch "main")           ; or :tag "v0.4.0"
+```
+
+To pin a local clone instead of the GitHub remote, use `:local-repo`.
+
+```elisp
+:straight (mab-org :type git :host github :repo "MooersLab/mab-org"
+                   :local-repo "/path/to/your/clone/of/mab-org")
+```
+
+After your init evaluates the recipe, force a fresh build with `M-x straight-rebuild-package RET mab-org RET` if needed. To pull updates later, run `M-x straight-pull-package RET mab-org RET` followed by a rebuild.
 ```
 
 ## Configuration
