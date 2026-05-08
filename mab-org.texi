@@ -7,7 +7,7 @@
 @c %**end of header
 
 @copying
-This manual documents Mab-Org, version 0.4.0, an Emacs package that
+This manual documents Mab-Org, version 0.5.0, an Emacs package that
 provides Org-mode helpers for modular annotated bibliographies.
 
 Copyright @copyright{} 2026 Blaine Mooers.
@@ -54,6 +54,7 @@ Documentation License''.
 * Public Commands::              Interactive entry points.
 * Project Template::             The mab project Org template.
 * Variant Resolution::           Reuse, variant, or quit.
+* Project-Number Suffix::        Optional project number on the stem.
 * Ebib Integration::             Add bib items from inside ebib.
 * The Test Suite::               Layout and how to run.
 * Makefile Targets::             Build, install, test, info.
@@ -184,6 +185,44 @@ Path to the global BibTeX library, searched by
 @vindex mab-org-region-confirm-threshold
 Maximum number of citations a region may carry before
 @code{mab-org-wrap-region} asks for confirmation.  Default 10.
+@end defopt
+
+@defopt mab-org-project-number-in-note-stem
+@vindex mab-org-project-number-in-note-stem
+How to incorporate the project number into the abibnote
+filename stem.  One of:
+
+@table @code
+@item nil
+Never include the project number; the stem is the citekey, and
+variants use a single-letter suffix.  This is the existing
+behavior.
+
+@item t
+Always include the project number; the stem is
+@code{<citekey><sep><project-number>}, and letter variants are
+applied on top of that base.  When the project number is empty
+the package falls back to the bare citekey and emits a message.
+
+@item ask
+Include the project number on demand.  The default stem is the
+citekey.  When a note already exists for that citekey, the
+variant prompt offers a project-suffixed stem alongside the
+letter-suffixed stem.  Pick the project variant to fork the
+note for the current project.
+@end table
+
+The default is @code{nil}.
+@end defopt
+
+@defopt mab-org-project-number-separator
+@vindex mab-org-project-number-separator
+Separator placed between the citekey and the project number.
+Used only when the resolved stem includes the project number.
+The default is a hyphen.  An empty string is allowed but is a
+poor choice for citekeys that already end in digits because, for
+example, @code{Coppens1997} followed by @code{2156} would become
+the ambiguous @code{Coppens19972156}.
 @end defopt
 
 @defopt mab-org-book-entry-regexp
@@ -383,6 +422,74 @@ the original citekey, because the BibTeX library and the PDF/book
 archives are keyed by citekey.
 @end itemize
 
+@node Project-Number Suffix
+@chapter Project-Number Suffix
+
+@cindex project number
+@cindex per-project notes
+
+The package can optionally append the current project number to the
+abibnote filename stem.  Three modes are available, controlled by
+@code{mab-org-project-number-in-note-stem}.
+
+@section Mode @code{nil} (default)
+
+The stem is the citekey.  Variants use a single-letter suffix.
+
+@example
+~/abibNotes/Coppens1997Xray.org
+~/abibNotes/Coppens1997Xraya.org    @r{(letter variant)}
+@end example
+
+@section Mode @code{t}
+
+The stem is @code{<citekey><sep><project-number>}.  Letter variants
+apply on top of that base.  This mode is appropriate when each
+project gets its own copy of every note.
+
+@example
+~/abibNotes/Coppens1997Xray-2156.org
+~/abibNotes/Coppens1997Xray-3010.org
+~/abibNotes/Coppens1997Xray-2156a.org   @r{(letter variant within 2156)}
+@end example
+
+When the project number is empty (no value entered at the wrap
+prompt, or no digit-only stem in the destination file name), the
+package falls back to the bare citekey and emits a message.  Nothing
+aborts.
+
+@section Mode @code{ask}
+
+The default stem is the citekey, and the variant prompt offers a
+project-suffixed stem alongside the letter-suffixed stem.  This is
+the most flexible mode.  The user shares notes across projects most
+of the time and forks a project-specific copy on demand.
+
+The variant prompt for an existing
+@file{Coppens1997Xray.org} in mode @code{ask} with project
+@code{2156} reads:
+
+@example
+Note Coppens1997Xray.org already exists
+  r  reuse              Reuse the existing note for this citekey
+  v  variant            Create a variant note as Coppens1997Xraya.org
+  p  project-variant    Create a project-specific variant as
+                        Coppens1997Xray-2156.org
+  q  quit               Abort the wrap operation
+@end example
+
+The @code{p} option is suppressed when no project number is
+available, when @code{Coppens1997Xray-2156.org} already exists, and
+when the project-suffixed stem would collide with the base stem.
+
+@section Migrating between modes
+
+Switching from @code{nil} to @code{t} does not rename existing
+notes.  New entries land at the project-suffixed path while old
+shared notes remain at the bare-citekey path.  To merge the two
+layouts, copy or symlink the bare-citekey notes into project-suffixed
+copies in the shell.
+
 @node Ebib Integration
 @chapter Ebib Integration
 
@@ -467,6 +574,16 @@ not overwriting an existing note.
 Variant resolution: no existing note (no prompt), reuse, variant,
 all letters taken (variant option suppressed), quit (signals
 @code{user-error}).
+
+@item
+Project-number suffix in all three modes.  Mode @code{nil}
+ignores the project number.  Mode @code{t} returns
+@code{CITEKEY-PROJECT}, falls back to the bare citekey when the
+project number is empty, and walks letters on top of the
+project-suffixed base.  Mode @code{ask} suppresses the
+project-variant choice when no project number is available, when
+the project target file already exists, and when the suffixed
+stem would equal the base stem.
 
 @item
 Project template substitution and project file creation, including
@@ -627,6 +744,14 @@ on @code{(eval-after-load 'ebib ...)}.
 @chapter Changelog
 
 @table @strong
+@item 0.5.0
+Added an optional project-number suffix on abibnote stems,
+controlled by @code{mab-org-project-number-in-note-stem} (modes
+@code{nil}, @code{t}, @code{ask}).  Mode @code{ask} adds a
+project-variant choice to the existing reuse/variant/quit prompt.
+Added @code{mab-org-project-number-separator} so the spelling of
+the suffix is configurable.
+
 @item 0.4.0
 Replaced the two PDF lines in the wrapped block with a single
 PDF link.  The link points at @code{mab-org-pdfs-directory} by
