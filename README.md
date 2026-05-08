@@ -136,6 +136,13 @@ After `make install`, add the install directory to your `load-path`.
 (require 'mab-org)
 ```
 
+If you would rather pre-create `mab-org-notes-directory` instead of letting the package create it on first use, run:
+
+```bash
+make setup                                          # uses ~/abibNotes/
+make MAB_ORG_NOTES_DIR=$HOME/research/abibNotes setup  # custom path
+```
+
 For a system-wide install, set `PREFIX` and run as root.
 
 ```bash
@@ -206,7 +213,7 @@ After your init evaluates the recipe, force a fresh build with `M-x straight-reb
 
 ## Configuration
 
-Customize through `M-x customize-group RET mab-org RET` or set in your init file.
+Customize through `M-x customize-group RET mab-org RET` or set in your init file. The notes directory is created automatically the first time any public command needs it (any wrap command, `mab-org-add-bib-item`, or `mab-org-add-entry-from-note`), so the package works on a fresh machine without an explicit setup step.
 
 | Option | Default | Purpose |
 | --- | --- | --- |
@@ -240,6 +247,7 @@ Example.
 | `mab-org-wrap-region` | Wrap every `[cite:@KEY]` in the active region |
 | `mab-org-insert-matching-keys` | Search the global bib and insert `[cite:@KEY]` lines |
 | `mab-org-add-bib-item` | Append the current ebib entry to a mab project file |
+| `mab-org-add-entry-from-note` | Pick an existing abibnote and insert the corresponding entry at point |
 
 ---
 
@@ -329,7 +337,22 @@ M-x ebib
 
 Navigate to the entry you want to annotate, then press <kbd>B</kbd>. Confirm the destination file (defaults to `mab-org-mab-path` if set). The package appends the wrapped block under the section `\section*{Illustrated and annotated bibliography}`, just below the last existing entry and above any `\clearpage` that introduces the `\section*{Backmatter}` heading. This keeps the new entry inside the bibliography section in the rendered PDF rather than letting it land on the Backmatter page. The note file is created if it does not yet exist.
 
-### Step 6. Search the global bibliography
+### Step 6. Insert an entry from an existing abibnote
+
+When you already have notes for a citekey on disk and want a fresh entry that points at one of them, browse for the note instead of typing the key.
+
+```elisp
+M-x mab-org-add-entry-from-note RET
+Existing abibnote to reference: ~/abibNotes/Coppens1997Xray.org RET
+```
+
+The command inserts the wrapped block at point. The file's stem becomes the note stem in `#+INCLUDE:` and the link to the Org note. The citekey for `\bibentry` and the PDF link is derived from the stem by stripping any project-number suffix (`<separator><digits>`); a single trailing letter (variant suffix) is left intact, because it cannot be reliably distinguished from citekeys that legitimately end in a letter.
+
+If the chosen note is `Coppens1997Xray-2156.org`, the inserted block uses `\bibentry{Coppens1997Xray}` (project suffix stripped) and `#+INCLUDE: ~/abibNotes/Coppens1997Xray-2156.org` (full stem retained).
+
+If `~/abibNotes/` does not yet exist, the command creates it before prompting.
+
+### Step 7. Search the global bibliography
 
 ```elisp
 M-x mab-org-insert-matching-keys RET
