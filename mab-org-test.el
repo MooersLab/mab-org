@@ -859,6 +859,144 @@ section after the bibliography heading."
         ;; Not in ebib-index-mode; derived-mode-p left at default.
         (should-error (mab-org-add-bib-item path) :type 'user-error)))))
 
+;;;; Notes-directory creation
+
+(ert-deftest mab-org-test-ensure-notes-directory-creates-when-missing ()
+  "The helper creates `mab-org-notes-directory' if absent."
+  (mab-org-test-with-temp-dir dir
+    (let* ((sub (expand-file-name "deeper/notes/" dir))
+           (mab-org-notes-directory sub))
+      (mab-org--ensure-notes-directory)
+      (should (file-directory-p sub)))))
+
+(ert-deftest mab-org-test-ensure-notes-directory-idempotent ()
+  "Calling the helper again does nothing destructive."
+  (mab-org-test-with-temp-dir dir
+    (let* ((mab-org-notes-directory dir)
+           (path (expand-file-name "K1.org" dir)))
+      (with-temp-file path (insert "ORIGINAL"))
+      (mab-org--ensure-notes-directory)
+      (mab-org--ensure-notes-directory)
+      (should (file-exists-p path))
+      (should (equal "ORIGINAL" (mab-org-test--read-file path))))))
+
+;;;; Citekey extraction from a note stem
+
+(ert-deftest mab-org-test-citekey-from-note-stem-bare ()
+  "Bare citekeys are returned unchanged."
+  (let ((mab-org-project-number-separator "-"))
+    (should (equal (mab-org--citekey-from-note-stem "Foo2020Bar")
+                   "Foo2020Bar"))))
+
+(ert-deftest mab-org-test-citekey-from-note-stem-strips-project ()
+  "A project-number suffix is stripped."
+  (let ((mab-org-project-number-separator "-"))
+    (should (equal (mab-org--citekey-from-note-stem "Foo2020Bar-1234")
+                   "Foo2020Bar"))
+    (should (equal (mab-org--citekey-from-note-stem "K1-2156")
+                   "K1"))))
+
+(ert-deftest mab-org-test-citekey-from-note-stem-honors-custom-separator ()
+  "A custom separator is respected when stripping."
+  (let ((mab-org-project-number-separator "_"))
+    (should (equal (mab-org--citekey-from-note-stem "K1_2156") "K1"))
+    (should (equal (mab-org--citekey-from-note-stem "K1-2156")
+                   "K1-2156"))))
+
+(ert-deftest mab-org-test-citekey-from-note-stem-leaves-letter-variant ()
+  "Letter-variant suffixes are not stripped."
+  (let ((mab-org-project-number-separator "-"))
+    ;; A trailing lowercase letter cannot be reliably distinguished
+    ;; from a citekey that legitimately ends in a single letter.
+    (should (equal (mab-org--citekey-from-note-stem "Foo2020Bara")
+                   "Foo2020Bara"))
+    (should (equal (mab-org--citekey-from-note-stem "Foo2020Bara-1234")
+                   "Foo2020Bara"))))
+
+(ert-deftest mab-org-test-citekey-from-note-stem-empty-separator ()
+  "An empty separator suppresses stripping (no ambiguous splits)."
+  (let ((mab-org-project-number-separator ""))
+    (should (equal (mab-org--citekey-from-note-stem "Foo20201234")
+                   "Foo20201234"))))
+
+;;;; mab-org-add-entry-from-note
+
+(ert-deftest mab-org-test-add-entry-from-note-uses-stem-and-citekey ()
+  "Inserts a wrapped block using the file stem as the note stem
+and the stripped citekey for the bibentry/PDF link."
+  (mab-org-test-with-temp-dir dir
+    (let* ((mab-org-notes-directory dir)
+           (mab-org-pdfs-directory "/tmp/papers/")
+           (mab-org-books-directory "/tmp/books/")
+           (mab-org-project-number-separator "-")
+           (mab-org-global-bib-file (expand-file-name "global.bib" dir))
+           (note (expand-file-name "Foo2020Bar-1234.org" dir)))
+      (with-temp-file mab-org-global-bib-file
+        (insert "@article{Foo2020Bar, title={x}}\n"))
+      (with-temp-file note (insert ""))
+      (with-temp-buffer
+        (mab-org-add-entry-from-note note)
+        (let ((body (buffer-string)))
+          ;; Bibentry uses the stripped citekey.
+          (should (string-match-p "\\\\bibentry{Foo2020Bar}" body))
+          (should-not (string-match-p "\\\\bibentry{Foo2020Bar-1234}" body))
+          ;; INCLUDE and the note link use the full stem.
+          (should (string-match-p "Foo2020Bar-1234\\.org" body))
+          ;; Article-PDF link uses the citekey, not the stem.
+          (should (string-match-p
+                   "file:/tmp/papers/Foo2020Bar\\.pdf" body))
+          (should-not (string-match-p "Foo2020Bar-1234\\.pdf" body)))))))
+
+(ert-deftest mab-org-test-add-entry-from-note-uses-book-link-for-book ()
+  "Picks the book PDF when the BibTeX entry begins with @book."
+  (mab-org-test-with-temp-dir dir
+    (let* ((mab-org-notes-directory dir)
+           (mab-org-pdfs-directory "/tmp/papers/")
+           (mab-org-books-directory "/tmp/books/")
+           (mab-org-global-bib-file (expand-file-name "global.bib" dir))
+           (note (expand-file-name "Coppens1997Xray.org" dir)))
+      (with-temp-file mab-org-global-bib-file
+        (insert "@book{Coppens1997Xray, title={X-ray charge densities}}\n"))
+      (with-temp-file note (insert ""))
+      (with-temp-buffer
+        (mab-org-add-entry-from-note note)
+        (let ((body (buffer-string)))
+          (should (string-match-p "book PDF" body))
+          (should-not (string-match-p "article PDF" body))
+          (should (string-match-p
+                   "file:/tmp/books/Coppens1997Xray\\.pdf" body)))))))
+
+(ert-deftest mab-org-test-add-entry-from-note-creates-missing-dir ()
+  "Calling the command does not error when the notes directory is missing."
+  (mab-org-test-with-temp-dir dir
+    (let* ((sub (expand-file-name "fresh-notes/" dir))
+           (mab-org-notes-directory sub)
+           (mab-org-pdfs-directory "/tmp/")
+           (mab-org-books-directory "/tmp/")
+           (mab-org-global-bib-file (expand-file-name "global.bib" dir))
+           (note (expand-file-name "K1.org" sub)))
+      ;; Pretend the user has a note already, but the directory does
+      ;; not exist yet on disk.  The helper must create it before the
+      ;; lookup, so we fake the file's existence by creating it now.
+      (with-temp-file mab-org-global-bib-file
+        (insert "@article{K1, title={x}}\n"))
+      (mab-org--ensure-notes-directory)
+      (with-temp-file note (insert ""))
+      (should (file-directory-p sub))
+      (with-temp-buffer
+        (mab-org-add-entry-from-note note)
+        (should (string-match-p "\\\\bibentry{K1}" (buffer-string)))))))
+
+(ert-deftest mab-org-test-add-entry-from-note-rejects-missing-file ()
+  "A non-existent path triggers `user-error'."
+  (mab-org-test-with-temp-dir dir
+    (let ((mab-org-notes-directory dir))
+      (with-temp-buffer
+        (should-error
+         (mab-org-add-entry-from-note
+          (expand-file-name "no-such-note.org" dir))
+         :type 'user-error)))))
+
 ;;;; Public command surface
 
 (ert-deftest mab-org-test-public-commands-bound ()
@@ -868,7 +1006,8 @@ section after the bibliography heading."
                  mab-org-wrap-region
                  mab-org-create-project
                  mab-org-open-file
-                 mab-org-add-bib-item))
+                 mab-org-add-bib-item
+                 mab-org-add-entry-from-note))
     (should (fboundp sym))))
 
 (ert-deftest mab-org-test-public-commands-are-interactive ()
@@ -878,7 +1017,8 @@ section after the bibliography heading."
                  mab-org-wrap-region
                  mab-org-create-project
                  mab-org-open-file
-                 mab-org-add-bib-item))
+                 mab-org-add-bib-item
+                 mab-org-add-entry-from-note))
     (should (commandp sym))))
 
 (provide 'mab-org-test)
